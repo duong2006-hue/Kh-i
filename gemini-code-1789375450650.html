@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Hình NCKH AI - Tích Hợp AI Học Thuật (UTAUT2)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; margin: 0; height: 100vh; background-color: #f4f7f6; overflow: hidden; }
+        
+        .sidebar { width: 430px; background: #fff; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); overflow-y: auto; display: flex; flex-direction: column; z-index: 10; box-sizing: border-box;}
+        .main-content { flex: 1; position: relative; }
+        h2 { color: #333; margin-top: 0; font-size: 19px; margin-bottom: 5px;}
+        .instruction { font-size: 13px; color: #666; margin-bottom: 12px; margin-top: 0; line-height: 1.4;}
+        
+        .section-title { font-size: 14px; font-weight: bold; margin-top: 15px; border-bottom: 2px solid #0056b3; padding-bottom: 5px; color: #0056b3; display: flex; justify-content: space-between; align-items: center;}
+        
+        .input-group { display: flex; gap: 5px; margin-bottom: 8px; margin-top: 8px;}
+        .input-group input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; transition: 0.2s;}
+        .input-group input:focus { border-color: #0056b3; outline: none; }
+        
+        .btn-delete { background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 0 10px; font-weight: bold; }
+        .btn-delete:hover { background: #d9363e; }
+        .btn-add-node { background: #e9ecef; color: #333; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;}
+        .btn-add-node:hover { background: #dee2e6; }
+        
+        .edge-row { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; background: #f9f9f9; padding: 8px; border-radius: 5px; border: 1px solid #eee; }
+        .edge-row select { width: 35%; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+        .edge-row input { width: 20%; padding: 6px; font-size: 12px; text-align: center; border: 1px solid #ccc; border-radius: 4px;}
+        
+        .btn-add-edge { background: #28a745; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 5px;}
+        
+        /* Cụm công cụ AI và Quản lý dự án */
+        .ai-banner { background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;}
+        .ai-banner-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px; }
+        .btn-ai-cfg { background: rgba(255,255,255,0.25); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .btn-ai-cfg:hover { background: rgba(255,255,255,0.4); }
+        .btn-ai-auto { background: #10b981; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px;}
+        .btn-ai-auto:hover { background: #059669; }
+
+        .project-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 30px; }
+        .btn-action { color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-export { background: #17a2b8; }
+        .btn-import { background: #ffc107; color: #333; }
+        .btn-share { background: #6f42c1; grid-column: span 2; }
+        
+        #cy { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background-color: white; }
+        .floating-sor { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 150px; pointer-events: none; z-index: 5; }
+        .sor-box { border: 2px solid #333; padding: 8px 25px; border-radius: 6px; font-weight: bold; font-size: 18px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        /* Modal hệ thống */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: #fff; padding: 22px; border-radius: 10px; width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px;}
+        .modal-header h3 { margin: 0; color: #0056b3; font-size: 17px;}
+        .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #888;}
+        
+        /* Modal Tabs */
+        .tab-bar { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #ddd; }
+        .tab-btn { padding: 8px 14px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: #666; }
+        .tab-btn.active { color: #0056b3; border-bottom-color: #0056b3; }
+
+        .modal-form-group { margin-bottom: 15px; }
+        .modal-form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #333; }
+        .modal-input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+        textarea.modal-input { resize: vertical; min-height: 80px; font-family: inherit;}
+
+        /* Khung Chat AI */
+        .chat-container { border: 1px solid #e2e8f0; border-radius: 6px; height: 260px; overflow-y: auto; padding: 10px; background: #f8fafc; display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;}
+        .chat-msg { padding: 8px 12px; border-radius: 6px; font-size: 13px; line-height: 1.45; max-width: 90%; }
+        .chat-msg.ai { background: #fff; border: 1px solid #cbd5e1; align-self: flex-start; color: #1e293b;}
+        .chat-msg.user { background: #0056b3; color: white; align-self: flex-end; }
+        .quick-prompts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .badge-prompt { background: #e0e7ff; color: #3730a3; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; border: 1px solid #c7d2fe;}
+        .badge-prompt:hover { background: #c7d2fe; }
+
+        .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
+        .btn-cancel { background: #6c757d; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h2>Công cụ vẽ Mô hình NCKH</h2>
+        <p class="instruction">Thiết lập cấu trúc mô hình UTAUT2. <b>Click trực tiếp vào ô biến để mở Trợ lý AI và tài liệu.</b></p>
+
+        <!-- Banner Quản lý AI -->
+        <div class="ai-banner">
+            <div class="ai-banner-header">
+                <span>🤖 AI Học Thuật (Q1, Q2, Q3)</span>
+                <button class="btn-ai-cfg" onclick="openAiConfigModal()">⚙️ Cài đặt Model</button>
+            </div>
+            <button class="btn-ai-auto" onclick="openDocExtractorModal()">✨ Đọc tài liệu để tự vẽ mô hình</button>
+        </div>
+
+        <div id="nodes-container"></div>
+
+        <div class="section-title" style="margin-top: 20px;">Tùy chỉnh Mũi tên (Giả thuyết)</div>
+        <div id="edges-container" style="margin-top: 10px;"></div>
+        <button class="btn-add-edge" onclick="addEdge()">+ Thêm mũi tên mới</button>
+
+        <div class="section-title" style="margin-top: 25px;">Quản lý Dự án</div>
+        <div class="project-actions">
+            <button class="btn-action btn-export" onclick="exportProject()">⬇️ Tải về (.json)</button>
+            <button class="btn-action btn-import" onclick="document.getElementById('file-upload').click()">⬆️ Mở dự án</button>
+            <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="importProject(event)">
+            <button class="btn-action btn-share" onclick="generateShareLink()">🔗 Copy Link Chia Sẻ</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="cy"></div>
+        <div class="floating-sor">
+            <div class="sor-box">Mô hình UTAUT2</div>
+        </div>
+    </div>
+
+    <!-- 1. MODAL CHI TIẾT BIẾN & CHAT AI HỌC THUẬT -->
+    <div id="node-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-node-title">Thuộc tính biến</h3>
+                <button class="modal-close" onclick="closeModal('node-modal')">&times;</button>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" id="tab-btn-ai" onclick="switchNodeTab('ai')">🤖 Trợ lý AI (Q1/Q2/Q3)</button>
+                <button class="tab-btn" id="tab-btn-doc" onclick="switchNodeTab('doc')">📑 Đính kèm Thang đo / Link</button>
+            </div>
+
+            <!-- Tab 1: AI Chat Assistant -->
+            <div id="tab-content-ai">
+                <div class="quick-prompts">
+                    <span class="badge-prompt" onclick="sendQuickPrompt(1)">🔍 Gợi ý biến tương đồng (Q1/Q2)</span>
+                    <span class="badge-prompt" onclick="sendQuickPrompt(2)">📏 Thang đo & Câu hỏi khảo sát</span>
+                    <span class="badge-prompt" onclick="sendQuickPrompt(3)">💡 Giả thuyết & Cơ sở lý thuyết</span>
+                </div>
+                <div class="chat-container" id="chat-messages">
+                    <div class="chat-msg ai">Xin chào! Bạn có thể hỏi tôi về các nghiên cứu uy tín (Q1, Q2, Q3), thang đo chuẩn hóa hoặc cơ sở lý thuyết cho biến này trong bối cảnh phân tích hành vi người tiêu dùng theo khung UTAUT2.</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="ai-chat-input" class="modal-input" placeholder="Hỏi AI về biến này..." onkeydown="if(event.key==='Enter') sendAiMessage()">
+                    <button class="btn-save" style="flex: 0 0 70px;" onclick="sendAiMessage()">Gửi</button>
+                </div>
+            </div>
+
+            <!-- Tab 2: Đính kèm tài liệu & ảnh -->
+            <div id="tab-content-doc" style="display: none;">
+                <div class="modal-form-group">
+                    <label>🌐 Link tài liệu / Bài báo nghiên cứu:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="modal-link" class="modal-input" placeholder="https://doi.org/...">
+                        <button class="btn-save" style="flex: 0 0 80px;" onclick="openExternalLink()">Mở Web</button>
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label>🖼️ Ảnh thang đo / Mô hình mẫu:</label>
+                    <input type="file" id="modal-img-upload" accept="image/*" class="modal-input" style="padding: 6px;" onchange="handleImageUpload(event)">
+                    <input type="text" id="modal-img-url" class="modal-input" style="margin-top: 8px;" placeholder="Hoặc dán URL ảnh trực tiếp" oninput="updateImagePreview()">
+                    <img id="modal-img-preview" style="width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; border-radius: 6px; border: 1px dashed #ccc; display: none;">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-save" onclick="saveNodeModalDocs()">💾 Lưu Đính Kèm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL CẤU HÌNH AI MIỄN PHÍ -->
+    <div id="ai-config-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 460px;">
+            <div class="modal-header">
+                <h3>⚙️ Cài đặt AI Miễn Phí</h3>
+                <button class="modal-close" onclick="closeModal('ai-config-modal')">&times;</button>
+            </div>
+            <div class="modal-form-group">
+                <label>Nhà cung cấp AI:</label>
+                <select id="ai-provider" class="modal-input" onchange="handleProviderChange()">
+                    <option value="gemini">Google Gemini (Miễn phí qua Google AI Studio)</option>
+                    <option value="openrouter">OpenRouter (Nhiều model Miễn Phí: Llama 3, Qwen, Gemini)</option>
+                </select>
+            </div>
+            <div class="modal-form-group">
+                <label>Model AI:</label>
+                <select id="ai-model" class="modal-input"></select>
+            </div>
+            <div class="modal-form-group">
+                <label id="api-key-label">API Key cá nhân:</label>
+                <input type="password" id="ai-api-key" class="modal-input" placeholder="Dán API Key vào đây...">
+                <small style="display:block; margin-top: 5px; color: #666; font-size: 11px;" id="api-key-hint">
+                    Khóa được lưu cục bộ trên trình duyệt của bạn và không gửi đi bất kỳ đâu khác.
+                </small>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-save" onclick="saveAiConfig()">Lưu cấu hình</button>
+                <button class="btn-cancel" onclick="closeModal('ai-config-modal')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL ĐỌC TÀI LIỆU ĐỂ TỰ ĐỘNG VẼ MÔ HÌNH -->
+    <div id="doc-extractor-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 580px;">
+            <div class="modal-header">
+                <h3>📑 AI Phân Tích Tài Liệu & Tự Vẽ Mô Hình UTAUT2</h3>
+                <button class="modal-close" onclick="closeModal('doc-extractor-modal')">&times;</button>
+            </div>
+            <p class="instruction">Dán đoạn tóm tắt (Abstract), đoạn trình bày giả thuyết nghiên cứu hoặc tài liệu bài báo vào đây. AI sẽ tự trích xuất biến theo chuẩn khung lý thuyết UTAUT2 và vẽ sơ đồ cho bạn.</p>
+            <div class="modal-form-group">
+                <textarea id="doc-extract-text" class="modal-input" style="min-height: 180px;" placeholder="Ví dụ: Nghiên cứu này đánh giá các yếu tố Kỳ vọng hiệu quả, Ảnh hưởng xã hội và Động lực giải trí tác động thế nào đến ý định sử dụng nền tảng..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-save" id="btn-run-extract" onclick="runDocumentExtraction()">⚡ Bắt đầu phân tích & Vẽ</button>
+                <button class="btn-cancel" onclick="closeModal('doc-extractor-modal')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cy;
+        let idCounter = 100;
+        let currentNodeIdForModal = null;
+
+        // Trạng thái Mô hình mặc định (UTAUT2)
+        let state = {
+            nodes: [
+                { id: 'pe', label: 'Performance Expectancy', group: 'independent', x: 150, y: 80 },
+                { id: 'ee', label: 'Effort Expectancy', group: 'independent', x: 150, y: 150 },
+                { id: 'si', label: 'Social Influence', group: 'independent', x: 150, y: 220 },
+                { id: 'fc', label: 'Facilitating Conditions', group: 'independent', x: 150, y: 290 },
+                { id: 'hm', label: 'Hedonic Motivation', group: 'independent', x: 150, y: 360 },
+                { id: 'pv', label: 'Price Value', group: 'independent', x: 150, y: 430 },
+                { id: 'ht', label: 'Habit', group: 'independent', x: 150, y: 500 },
+                { id: 'bi', label: 'Behavioral Intention', group: 'dependent', x: 500, y: 290 },
+                { id: 'ub', label: 'Use Behavior', group: 'dependent', x: 800, y: 290 },
+                { id: 'age', label: 'Age', group: 'moderator', x: 450, y: 80 },
+                { id: 'gen', label: 'Gender', group: 'moderator', x: 600, y: 80 },
+                { id: 'exp', label: 'Experience', group: 'moderator', x: 750, y: 80 }
+            ],
+            edges: [
+                { id: 'e1', source: 'pe', target: 'bi', label: 'H1' }, 
+                { id: 'e2', source: 'ee', target: 'bi', label: 'H2' },
+                { id: 'e3', source: 'si', target: 'bi', label: 'H3' }, 
+                { id: 'e4', source: 'fc', target: 'bi', label: 'H4' },
+                { id: 'e5', source: 'hm', target: 'bi', label: 'H5' }, 
+                { id: 'e6', source: 'pv', target: 'bi', label: 'H6' },
+                { id: 'e7', source: 'ht', target: 'bi', label: 'H7' }, 
+                { id: 'e8', source: 'fc', target: 'ub', label: 'H8' },
+                { id: 'e9', source: 'ht', target: 'ub', label: 'H9' }, 
+                { id: 'e10', source: 'bi', target: 'ub', label: 'H10' }
+            ]
+        };
+
+        const groups = [
+            { id: 'independent', title: 'Biến Độc lập (Independent)' },
+            { id: 'dependent', title: 'Biến Phụ thuộc (Dependent)' },
+            { id: 'moderator', title: 'Biến Điều tiết (Moderators)' }
+        ];
+
+        // Cấu hình AI lưu trong LocalStorage
+        let aiConfig = {
+            provider: 'gemini',
+            model: 'gemini-1.5-flash',
+            apiKey: ''
+        };
+
+        const availableModels = {
+            gemini: [
+                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Nhanh, Miễn phí)' },
+                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Học thuật sâu)' }
+            ],
+            openrouter: [
+                { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Miễn phí)' },
+                { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (Miễn phí)' },
+                { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Miễn phí)' }
+            ]
+        };
+
+        function loadAiConfig() {
+            const saved = localStorage.getItem('research_ai_config');
+            if(saved) {
+                try { aiConfig = JSON.parse(saved); } catch(e){}
+            }
+        }
+
+        // Khởi tạo đồ thị Cytoscape
+        function initCytoscape() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                style: [
+                    { selector: 'node[group]', style: { 'shape': 'rectangle', 'background-color': '#fff', 'border-width': 1.5, 'border-color': '#333', 'label': 'data(displayLabel)', 'text-valign': 'center', 'text-halign': 'center', 'width': '160px', 'height': '45px', 'font-size': '12px', 'text-wrap': 'wrap', 'text-max-width': '140px' }},
+                    { selector: 'node[group="moderator"]', style: { 'background-color': '#f0f8ff', 'border-style': 'solid', 'border-color': '#0056b3' }},
+                    { selector: '$node > node', style: { 'background-color': 'rgba(255,255,255,0)', 'border-width': 2, 'border-style': 'dashed', 'border-color': '#888', 'label': 'data(label)', 'text-valign': 'top', 'text-halign': 'center', 'font-weight': 'bold', 'font-size': '13px', 'padding': '15px' }},
+                    { selector: 'edge', style: { 'width': 1.5, 'line-color': '#000', 'target-arrow-color': '#000', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'font-size': '11px', 'font-weight': 'bold', 'text-background-opacity': 1, 'text-background-color': '#fff', 'text-background-padding': '3px', 'text-border-opacity': 1, 'text-border-width': 1, 'text-border-color': '#ccc' }}
+                ],
+                layout: { name: 'preset' },
+                userZoomingEnabled: false
+            });
+
+            cy.on('dragfree', 'node', function(evt){
+                const node = evt.target;
+                const stateNode = state.nodes.find(n => n.id === node.id());
+                if(stateNode) {
+                    stateNode.x = node.position('x');
+                    stateNode.y = node.position('y');
+                }
+            });
+
+            cy.on('tap', 'node', function(evt){
+                const node = evt.target;
+                if(node.isParent()) return;
+                openNodeModal(node.id());
+            });
+
+            cy.on('mouseover', 'node', function(evt) {
+                if(!evt.target.isParent()) document.body.style.cursor = 'pointer';
+            });
+            cy.on('mouseout', 'node', function(evt) {
+                document.body.style.cursor = 'default';
+            });
+        }
+
+        function getDisplayLabel(nodeObj) {
+            if(nodeObj.linkUrl || nodeObj.imageUrl) return nodeObj.label + ' 📎';
+            return nodeObj.label;
+        }
+
+        function renderGraph() {
+            cy.elements().remove(); 
+            cy.add([
+                { data: { id: 'group_independent', label: 'INDEPENDENT VARIABLES' } },
+                { data: { id: 'group_dependent', label: 'DEPENDENT VARIABLES' } }
+            ]);
+            state.nodes.forEach(n => {
+                let parentId = (n.group === 'independent' || n.group === 'dependent') ? 'group_' + n.group : undefined;
+                cy.add({ data: { id: n.id, label: n.label, displayLabel: getDisplayLabel(n), group: n.group, parent: parentId }, position: { x: n.x, y: n.y } });
+            });
+            state.edges.forEach(e => {
+                if(state.nodes.find(n => n.id === e.source) && state.nodes.find(n => n.id === e.target)) {
+                    cy.add({ data: { id: e.id, source: e.source, target: e.target, label: e.label } });
+                }
+            });
+        }
+
+        // ==========================================
+        // GIAO TIẾP VỚI API CỦA AI (GEMINI & OPENROUTER)
+        // ==========================================
+        async function callAiService(prompt, systemInstruction = "") {
+            if(!aiConfig.apiKey) {
+                alert("⚠️ Bạn chưa cấu hình API Key! Vui lòng nhấn nút '⚙️ Cài đặt Model' trên banner để nhập khóa.");
+                openAiConfigModal();
+                throw new Error("Missing API Key");
+            }
+
+            if(aiConfig.provider === 'gemini') {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${aiConfig.model}:generateContent?key=${aiConfig.apiKey}`;
+                const payload = {
+                    contents: [
+                        { role: 'user', parts: [{ text: (systemInstruction ? systemInstruction + "\n\n" : "") + prompt }] }
+                    ]
+                };
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if(data.error) throw new Error(data.error.message || "Lỗi API Gemini");
+                return data.candidates[0].content.parts[0].text;
+            } 
+            else if(aiConfig.provider === 'openrouter') {
+                const url = "https://openrouter.ai/api/v1/chat/completions";
+                const messages = [];
+                if(systemInstruction) messages.push({ role: 'system', content: systemInstruction });
+                messages.push({ role: 'user', content: prompt });
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${aiConfig.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: aiConfig.model,
+                        messages: messages
+                    })
+                });
+                const data = await response.json();
+                if(data.error) throw new Error(data.error.message || "Lỗi API OpenRouter");
+                return data.choices[0].message.content;
+            }
+        }
+
+        // ==========================================
+        // TÍNH NĂNG 1: CHAT AI THEO BIẾN (Q1/Q2/Q3)
+        // ==========================================
+        function openNodeModal(nodeId) {
+            currentNodeIdForModal = nodeId;
+            const node = state.nodes.find(n => n.id === nodeId);
+            if(!node) return;
+
+            document.getElementById('modal-node-title').innerText = `📑 Biến: ${node.label}`;
+            document.getElementById('modal-link').value = node.linkUrl || '';
+            document.getElementById('modal-img-url').value = node.imageUrl || '';
+            document.getElementById('modal-img-upload').value = '';
+            updateImagePreview();
+
+            // Khởi tạo lại chat container
+            const chatBox = document.getElementById('chat-messages');
+            chatBox.innerHTML = `<div class="chat-msg ai">Tôi đang sẵn sàng hỗ trợ biến <b>${node.label}</b> trong mô hình UTAUT2. Bạn có thể chọn nhanh gợi ý phía trên hoặc hỏi trực tiếp để tra cứu bài báo.</div>`;
+            
+            switchNodeTab('ai');
+            document.getElementById('node-modal').style.display = 'flex';
+        }
+
+        function switchNodeTab(tabName) {
+            document.getElementById('tab-btn-ai').classList.toggle('active', tabName === 'ai');
+            document.getElementById('tab-btn-doc').classList.toggle('active', tabName === 'doc');
+            document.getElementById('tab-content-ai').style.display = (tabName === 'ai') ? 'block' : 'none';
+            document.getElementById('tab-content-doc').style.display = (tabName === 'doc') ? 'block' : 'none';
+        }
+
+        async function sendAiMessage(customPrompt = null) {
+            const input = document.getElementById('ai-chat-input');
+            const message = customPrompt || input.value.trim();
+            if(!message) return;
+
+            const node = state.nodes.find(n => n.id === currentNodeIdForModal);
+            const chatBox = document.getElementById('chat-messages');
+
+            // Hiển thị tin nhắn người dùng
+            chatBox.innerHTML += `<div class="chat-msg user">${message}</div>`;
+            if(!customPrompt) input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const loadingId = 'loading-' + Date.now();
+            chatBox.innerHTML += `<div class="chat-msg ai" id="${loadingId}">⏳ Đang tra cứu cơ sở dữ liệu học thuật Q1/Q2/Q3...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const systemInstruction = `Bạn là chuyên gia phương pháp nghiên cứu định lượng hàng đầu trong lĩnh vực Hệ thống Thông tin (IS), Thương mại Điện tử và Hành vi Người tiêu dùng. 
+Bối cảnh nghiên cứu: Chấp nhận công nghệ mới, sử dụng mô hình UTAUT2 (Unified Theory of Acceptance and Use of Technology 2). 
+Biến hiện tại đang xét: "${node.label}" (thuộc nhóm ${node.group.toUpperCase()}).
+Yêu cầu: Khi trả lời, hãy tham chiếu các nguồn tạp chí uy tín xếp hạng Q1, Q2, Q3 (như Computers in Human Behavior, Decision Support Systems, JRET, Journal of Business Research,...), đưa ra tên tác giả/năm và gợi ý thang đo (measurement items) chuẩn hóa nếu phù hợp.`;
+
+            try {
+                const reply = await callAiService(message, systemInstruction);
+                document.getElementById(loadingId).innerText = reply;
+            } catch (err) {
+                document.getElementById(loadingId).innerText = "❌ Lỗi: " + err.message;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendQuickPrompt(type) {
+            const node = state.nodes.find(n => n.id === currentNodeIdForModal);
+            if(!node) return;
+            if(type === 1) {
+                sendAiMessage(`Dựa trên các bài báo Q1, Q2 sử dụng mô hình UTAUT2 gần đây, hãy gợi ý các biến có tác động mạnh nhất hoặc có tương quan trực tiếp nhất với biến "${node.label}".`);
+            } else if(type === 2) {
+                sendAiMessage(`Hãy cung cấp thang đo Likert 5 hoặc 7 điểm chuẩn hóa cho biến "${node.label}" dựa trên bài báo gốc của Venkatesh et al. (2012) hoặc các nghiên cứu uy tín khác kèm nguồn tác giả.`);
+            } else if(type === 3) {
+                sendAiMessage(`Hãy đề xuất 2 giả thuyết khoa học (H) khả thi kết nối biến "${node.label}" với các biến khác trong mô hình UTAUT2 kèm lập luận lý thuyết.`);
+            }
+        }
+
+        // ==========================================
+        // TÍNH NĂNG 2: TỰ ĐỘNG ĐỌC TÀI LIỆU VẼ MÔ HÌNH
+        // ==========================================
+        function openDocExtractorModal() {
+            document.getElementById('doc-extractor-modal').style.display = 'flex';
+        }
+
+        async function runDocumentExtraction() {
+            const text = document.getElementById('doc-extract-text').value.trim();
+            if(!text) return alert("Vui lòng dán văn bản nghiên cứu vào khung!");
+
+            const btn = document.getElementById('btn-run-extract');
+            btn.disabled = true;
+            btn.innerText = "⏳ AI đang trích xuất biến và cấu trúc...";
+
+            const systemInstruction = `Bạn là một AI parser cấu trúc mô hình NCKH. Hãy đọc văn bản được cung cấp và phân loại toàn bộ biến vào đúng khung lý thuyết của mô hình UTAUT2:
+- 'independent': Biến độc lập (kỳ vọng hiệu quả, ảnh hưởng xã hội, điều kiện thuận lợi...)
+- 'dependent': Biến phụ thuộc (ý định hành vi, hành vi sử dụng...)
+- 'moderator': Biến điều tiết (tuổi tác, giới tính, kinh nghiệm, tự nguyện...)
+
+CHỈ TRẢ VỀ ĐÚNG MỘT KHỐI JSON DUY NHẤT (không dùng markdown backticks, không giải thích gì thêm) theo cấu trúc chuẩn xác:
+{
+  "nodes": [
+    {"id": "pe", "label": "Performance Expectancy", "group": "independent", "x": 150, "y": 100},
+    {"id": "bi", "label": "Behavioral Intention", "group": "dependent", "x": 500, "y": 250},
+    {"id": "age", "label": "Age", "group": "moderator", "x": 450, "y": 80}
+  ],
+  "edges": [
+    {"id": "e1", "source": "pe", "target": "bi", "label": "H1"}
+  ]
+}`;
+
+            try {
+                let aiResponse = await callAiService(text, systemInstruction);
+                // Làm sạch chuỗi JSON nếu model bọc trong ```json
+                aiResponse = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(aiResponse);
+
+                if(parsed.nodes && parsed.edges) {
+                    state = parsed;
+                    let maxId = 100;
+                    [...state.nodes, ...state.edges].forEach(item => {
+                        let num = parseInt(item.id.replace(/\D/g, ''));
+                        if (!isNaN(num) && num > maxId) maxId = num;
+                    });
+                    idCounter = maxId;
+
+                    renderSidebar();
+                    renderGraph();
+                    closeModal('doc-extractor-modal');
+                    alert("✅ AI đã trích xuất thành công và cập nhật mô hình nghiên cứu lên màn hình!");
+                } else {
+                    throw new Error("Dữ liệu trả về không đúng cấu trúc.");
+                }
+            } catch (err) {
+                alert("❌ Không thể trích xuất mô hình: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "⚡ Bắt đầu phân tích & Vẽ";
+            }
+        }
+
+        // ==========================================
+        // CẤU HÌNH & QUẢN LÝ DỰ ÁN
+        // ==========================================
+        function openAiConfigModal() {
+            document.getElementById('ai-provider').value = aiConfig.provider;
+            handleProviderChange();
+            document.getElementById('ai-model').value = aiConfig.model;
+            document.getElementById('ai-api-key').value = aiConfig.apiKey;
+            document.getElementById('ai-config-modal').style.display = 'flex';
+        }
+
+        function handleProviderChange() {
+            const provider = document.getElementById('ai-provider').value;
+            const modelSelect = document.getElementById('ai-model');
+            const keyHint = document.getElementById('api-key-hint');
+            modelSelect.innerHTML = '';
+            
+            availableModels[provider].forEach(m => {
+                modelSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+
+            if(provider === 'gemini') {
+                keyHint.innerHTML = `Lấy key miễn phí tại: <a href="[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)" target="_blank">Google AI Studio</a>`;
+            } else {
+                keyHint.innerHTML = `Lấy key miễn phí tại: <a href="[https://openrouter.ai/keys](https://openrouter.ai/keys)" target="_blank">OpenRouter Dashboard</a>`;
+            }
+        }
+
+        function saveAiConfig() {
+            aiConfig.provider = document.getElementById('ai-provider').value;
+            aiConfig.model = document.getElementById('ai-model').value;
+            aiConfig.apiKey = document.getElementById('ai-api-key').value.trim();
+            localStorage.setItem('research_ai_config', JSON.stringify(aiConfig));
+            closeModal('ai-config-modal');
+            alert("✅ Đã lưu cấu hình AI thành công!");
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function saveNodeModalDocs() {
+            if(!currentNodeIdForModal) return;
+            const node = state.nodes.find(n => n.id === currentNodeIdForModal);
+            if(node) {
+                node.linkUrl = document.getElementById('modal-link').value.trim();
+                node.imageUrl = document.getElementById('modal-img-url').value.trim();
+                cy.getElementById(node.id).data('displayLabel', getDisplayLabel(node));
+            }
+            closeModal('node-modal');
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('modal-img-url').value = e.target.result; 
+                updateImagePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateImagePreview() {
+            const url = document.getElementById('modal-img-url').value.trim();
+            const imgEl = document.getElementById('modal-img-preview');
+            if(url) {
+                imgEl.src = url;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.src = '';
+                imgEl.style.display = 'none';
+            }
+        }
+
+        function openExternalLink() {
+            const url = document.getElementById('modal-link').value.trim();
+            if(url) {
+                window.open(url.startsWith('http') ? url : 'https://' + url, '_blank');
+            } else {
+                alert('Vui lòng nhập Link tài liệu!');
+            }
+        }
+
+        // Render Sidebar thông thường
+        function renderSidebar() {
+            const nodesContainer = document.getElementById('nodes-container');
+            nodesContainer.innerHTML = '';
+            groups.forEach(g => {
+                const section = document.createElement('div');
+                section.innerHTML = `
+                    <div class="section-title">
+                        ${g.title} 
+                        <button class="btn-add-node" onclick="addNode('${g.id}')">+ Thêm</button>
+                    </div>
+                    <div id="group-${g.id}"></div>
+                `;
+                nodesContainer.appendChild(section);
+                const groupContainer = document.getElementById(`group-${g.id}`);
+                const groupNodes = state.nodes.filter(n => n.group === g.id);
+                groupNodes.forEach(n => {
+                    groupContainer.innerHTML += `
+                        <div class="input-group">
+                            <input type="text" value="${n.label}" oninput="updateNodeLabel('${n.id}', this.value)">
+                            <button class="btn-delete" onclick="removeNode('${n.id}')">X</button>
+                        </div>
+                    `;
+                });
+            });
+            renderSidebarEdges();
+        }
+
+        function renderSidebarEdges() {
+            const container = document.getElementById('edges-container');
+            container.innerHTML = '';
+            const optionsHtml = state.nodes.map(n => `<option value="${n.id}">${n.label.substring(0,20)}${n.label.length>20?'...':''}</option>`).join('');
+            state.edges.forEach(e => {
+                const row = document.createElement('div');
+                row.className = 'edge-row';
+                row.innerHTML = `
+                    <select onchange="updateEdge('${e.id}', 'source', this.value)">
+                        ${optionsHtml.replace(`value="${e.source}"`, `value="${e.source}" selected`)}
+                    </select> 
+                    <span>➔</span>
+                    <select onchange="updateEdge('${e.id}', 'target', this.value)">
+                        ${optionsHtml.replace(`value="${e.target}"`, `value="${e.target}" selected`)}
+                    </select>
+                    <input type="text" value="${e.label}" oninput="updateEdge('${e.id}', 'label', this.value)" placeholder="Nhãn">
+                    <button class="btn-delete" onclick="removeEdge('${e.id}')">X</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addNode(groupId) {
+            idCounter++;
+            let defaultX = groupId === 'moderator' ? 650 : 400;
+            let defaultY = groupId === 'moderator' ? 100 : 300;
+            state.nodes.push({ id: 'n' + idCounter, label: 'Biến mới', group: groupId, x: defaultX, y: defaultY });
+            renderSidebar();
+            renderGraph();
+        }
+
+        function removeNode(id) {
+            state.nodes = state.nodes.filter(n => n.id !== id);
+            state.edges = state.edges.filter(e => e.source !== id && e.target !== id);
+            renderSidebar();
+            renderGraph();
+        }
+
+        function updateNodeLabel(id, newLabel) {
+            const node = state.nodes.find(n => n.id === id);
+            if(node) {
+                node.label = newLabel;
+                cy.getElementById(id).data('displayLabel', getDisplayLabel(node)); 
+                renderSidebarEdges(); 
+            }
+        }
+
+        function addEdge() {
+            if(state.nodes.length < 2) return alert("Cần ít nhất 2 biến để tạo liên kết!");
+            idCounter++;
+            state.edges.push({ id: 'e' + idCounter, source: state.nodes[0].id, target: state.nodes[1].id, label: 'H' });
+            renderSidebarEdges();
+            renderGraph();
+        }
+
+        function removeEdge(id) {
+            state.edges = state.edges.filter(e => e.id !== id);
+            renderSidebarEdges();
+            renderGraph();
+        }
+
+        function updateEdge(id, field, value) {
+            const edge = state.edges.find(e => e.id === id);
+            if(edge) { edge[field] = value; renderGraph(); }
+        }
+
+        window.exportProject = function() {
+            const dataStr = JSON.stringify(state, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mo-hinh-nckh-utaut2.json'; 
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        window.importProject = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState.nodes && importedState.edges) {
+                        state = importedState;
+                        let maxId = 100;
+                        [...state.nodes, ...state.edges].forEach(item => {
+                            let num = parseInt(item.id.replace(/\D/g, ''));
+                            if (!isNaN(num) && num > maxId) maxId = num;
+                        });
+                        idCounter = maxId;
+                        renderSidebar();
+                        renderGraph();
+                    }
+                } catch (err) { alert("⚠️ Lỗi đọc tệp tin."); }
+                event.target.value = ''; 
+            };
+            reader.readAsText(file);
+        };
+
+        window.generateShareLink = function() {
+            let hasLargeBase64 = state.nodes.some(n => n.imageUrl && n.imageUrl.startsWith('data:image') && n.imageUrl.length > 5000);
+            if(hasLargeBase64) {
+                alert("⚠️ Dự án có chứa file ảnh lớn từ máy. Vui lòng dùng tính năng 'Tải về (.json)' để chia sẻ.");
+                return;
+            }
+            try {
+                const encodedData = btoa(encodeURIComponent(JSON.stringify(state)));
+                const shareUrl = window.location.origin + window.location.pathname + '?data=' + encodedData;
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('✅ Đã copy link chia sẻ vào Clipboard!');
+                }).catch(() => {
+                    prompt("Hãy copy đường link bên dưới:", shareUrl);
+                });
+            } catch (error) {
+                alert('⚠️ Bản vẽ quá lớn để tạo link. Hãy dùng nút Tải về máy (.json).');
+            }
+        };
+
+        window.onload = () => {
+            loadAiConfig();
+            const urlParams = new URLSearchParams(window.location.search);
+            const savedData = urlParams.get('data');
+            if (savedData) {
+                try {
+                    state = JSON.parse(decodeURIComponent(atob(savedData)));
+                    let maxId = 100;
+                    [...state.nodes, ...state.edges].forEach(item => {
+                        let num = parseInt(item.id.replace(/\D/g, ''));
+                        if (!isNaN(num) && num > maxId) maxId = num;
+                    });
+                    idCounter = maxId;
+                } catch (error) {}
+            }
+            initCytoscape();
+            renderSidebar();
+            renderGraph();
+        };
+    </script>
+</body>
+</html>
